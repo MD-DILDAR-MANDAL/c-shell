@@ -5,6 +5,11 @@
 #include <string.h>
 
 //argc: argument count, argv: argument vector
+void lsh_loop(void);
+char * lsh_read_line(void);
+char **lsh_split_line(char * line);
+int lsh_execute(char **args);
+
 int main(int argc, char **argv){
     
     lsh_loop();
@@ -37,14 +42,14 @@ char * lsh_read_line(void){
     int c;
 
     if(!buffer){
-        fprint(stderr,"lsh: allocation error\n");
+        fprintf(stderr,"lsh: allocation error\n");
         exit(EXIT_FAILURE);
     }
 
     while(1){
         c = getchar();
         
-        if(c == EOF || c = '\n'){
+        if(c == EOF || c == '\n'){
             buffer[position] = '\0';
             return buffer;
         }else{
@@ -93,7 +98,7 @@ char **lsh_split_line(char * line){
     char *token;
 
     if(!tokens){
-        fprint(stderr,"lsh: allocation error\n");
+        fprintf(stderr,"lsh: allocation error\n");
         exit(EXIT_FAILURE);
     }
 
