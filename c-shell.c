@@ -237,20 +237,23 @@ int lsh_cd(char **args);
 int lsh_help(char **args);
 int lsh_exit(char **args);
 int lsh_type(char **args);
+int lsh_echo(char **args);
 
 /*list of builtin commands, followed by their corresponding functions.*/
 char *builtin_str [] = {
 	"cd",
 	"help",
 	"exit",
-	"type"
+	"type",
+    "echo"
 };
 
 int (*builtin_func[]) (char **) = {
 	&lsh_cd,
 	&lsh_help,
 	&lsh_exit,
-	&lsh_type
+	&lsh_type,
+    &lsh_echo
 }; 
 
 int lsh_num_builtins(){
@@ -302,6 +305,17 @@ int lsh_type(char **args){
         printf("lsh: %s not found \n",args[1]);
 	}
 	return 1;
+}
+
+int lsh_echo(char **args){
+    int i = 1;
+
+    while(args[i] != NULL){
+        printf("%s ",args[i]);
+        i++;
+    }
+    printf("\n");
+    return 1;
 }
 /*
 Putting together builtins and processes
