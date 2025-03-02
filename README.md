@@ -26,3 +26,4 @@ Command :
  
  later addon by me,
  - type 
+ - echo
