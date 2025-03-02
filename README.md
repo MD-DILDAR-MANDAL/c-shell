@@ -1,6 +1,6 @@
 # C Shell
 
-Buid a shell in C from a tutorial by Stephan Brennan.
+Building a shell in C from a tutorial by Stephan Brennan.
 ```
                                    /\
                               /\  //\\
