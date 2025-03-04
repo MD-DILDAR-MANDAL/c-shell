@@ -238,14 +238,15 @@ int lsh_help(char **args);
 int lsh_exit(char **args);
 int lsh_type(char **args);
 int lsh_echo(char **args);
-
+int lsh_pwd(char **args);
 /*list of builtin commands, followed by their corresponding functions.*/
 char *builtin_str [] = {
 	"cd",
 	"help",
 	"exit",
 	"type",
-    "echo"
+    "echo",
+    "pwd"
 };
 
 int (*builtin_func[]) (char **) = {
@@ -253,7 +254,8 @@ int (*builtin_func[]) (char **) = {
 	&lsh_help,
 	&lsh_exit,
 	&lsh_type,
-    &lsh_echo
+    &lsh_echo,
+    &lsh_pwd
 }; 
 
 int lsh_num_builtins(){
@@ -317,6 +319,22 @@ int lsh_echo(char **args){
     printf("\n");
     return 1;
 }
+
+//https://www.gnu.org/software/libc/manual/html_node/Working-Directory.html
+int lsh_pwd(char **args){
+    char *directory = malloc(1024 * sizeof(char));
+    if(directory == NULL){
+        perror("malloc");
+        return 1;
+    }
+    if(getcwd(directory, 1024) == NULL){
+        perror("lsh");
+    }
+    else printf("%s\n", directory);
+    free(directory);
+    return 1;
+}
+
 /*
 Putting together builtins and processes
 
