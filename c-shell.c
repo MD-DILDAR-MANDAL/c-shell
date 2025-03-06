@@ -1,45 +1,21 @@
-// waitpid() and associated macros
-#include <sys/wait.h>
-
-//chdir()   fork()  exec()  pid_t
-#include <unistd.h>
-
-//malloc()  realloc()   free()  exit()  execvp() EXIT_SUCCESS, EXIT_FAILURE
-#include <stdlib.h>
-
-//fprintf()    printf()   stderr  getchar() perror()
-#include <stdio.h>
-
-//strcmp()  strtok()
+#include <sys/wait.h> // waitpid() and associated macros
+#include <unistd.h> //chdir()   fork()  exec()  pid_t
+#include <stdlib.h> //malloc()  realloc()   free()  exit()  execvp() EXIT_SUCCESS, EXIT_FAILURE
+#include <stdio.h> //fprintf()   stderr  getchar() perror()
 #include <string.h>
 
-/* Basic lifetime of a shell
-A shell does three main things in its lifetime.
-
-    Initialize: In this step, a typical shell would read and execute its configuration files. These change aspects of the shell’s behavior.    
-    Interpret: Next, the shell reads commands from stdin (which could be interactive, or a file) and executes them.
-    Terminate: After its commands are executed, the shell executes any shutdown commands, frees up any memory, and terminates.
-*/
-
-//argc: argument count, argv: argument vector
 void lsh_loop(void);
 char * lsh_read_line(void);
 char **lsh_split_line(char * line);
 int lsh_execute(char **args);
 
+//argc: argument count, argv: argument vector
 int main(int argc, char **argv){
-    
     lsh_loop();
-
     return EXIT_SUCCESS;
 }
 
-/*Basic loop of a shell
-    Read: Read the command from standard input.
-    Parse: Separate the command string into a program and arguments.
-    Execute: Run the parsed command
- */
-
+/*Read, Parse, Execute */
 void lsh_loop(void){
     char *line;
     char **args;
@@ -50,17 +26,11 @@ void lsh_loop(void){
         line = lsh_read_line();
         args = lsh_split_line(line);
         status = lsh_execute(args);
-        
         free(line);
         free(args);
     }while(status);
 }
 
-/*Reading a line
-We don’t know ahead of time how much text a user will enter into their shell. 
-We can’t simply allocate a block and hope they don’t exceed it. 
-We need to start with a block, and if they do exceed it, reallocate with more space. 
-*/
 #define LSH_RL_BUFSIZE 1024
 char * lsh_read_line(void){
     int bufsize = LSH_RL_BUFSIZE;
@@ -96,31 +66,6 @@ char * lsh_read_line(void){
 }
 
 /*
-//shortcut if you use getline() this does most of the work we just implemented above.
-
-char *lsh_read_line(void)
-{
-  char *line = NULL;
-  ssize_t bufsize = 0; // have getline allocate a buffer for us
-
-  if (getline(&line, &bufsize, stdin) == -1){
-    if (feof(stdin)) {
-      exit(EXIT_SUCCESS);  // We recieved an EOF
-    } else  {
-      perror("readline");
-      exit(EXIT_FAILURE);
-    }
-  }
-
-  return line;
-}
-
-*/
-
-/*
-Parsing the line
-We now have implemented lsh_read_line(), we have the line of input.
-We need to parse that line into a list of arguments.
 We won’t allow quoting or backslash escaping in our command line arguments. 
 Instead, we will simply use whitespace to separate arguments from each other. 
 So the command echo "this message" would not call echo with a single argument this message, but rather it would call echo with two arguments: "this and message".
@@ -128,7 +73,6 @@ So the command echo "this message" would not call echo with a single argument th
 With those simplifications, all we need to do is “tokenize” the string using whitespace as delimiters. 
 That means we can break out the classic library function strtok to do some of the dirty work for us.
 */
-
 #define LSH_TOK_BUFSIZE 64
 #define LSH_TOK_DELIM " \t\r\n\a"
 char **lsh_split_line(char * line){
@@ -187,24 +131,20 @@ The parent process can continue doing other things, and it can even keep tabs on
 int lsh_launch(char **args){
     pid_t pid, wpid;
     int status;
-
-    /*https://www.digitalocean.com/community/tutorials/execvp-function-c-plus-plus
-    This is called the “fork-exec” model, 
-    and is the standard practice for running multiple processes using C.*/
     pid = fork();
+
     if(pid == 0){
-        //child process
         if(execvp(args[0], args) == -1){
             perror("lsh");
         }
         exit(EXIT_FAILURE);
-    }else if(pid < 0){
-        //error forking
+    }
+    else if(pid < 0){
         perror("lsh");
-    }else{
-        //parent process
-     do{ 
-        wpid = waitpid(pid, &status, WUNTRACED);
+    }
+    else{
+        do{ 
+            wpid = waitpid(pid, &status, WUNTRACED);
         }while(!WIFEXITED(status) && !WIFSIGNALED(status));
     }
     return 1;
@@ -232,14 +172,13 @@ These commands could only change the shell’s operation if they were implemente
 So, it makes sense that we need to add some commands to the shell itself. The ones I added to my shell are cd, exit, and help.
  */
 
-/*function declarations for builtin shell commands:*/
 int lsh_cd(char **args);
 int lsh_help(char **args);
 int lsh_exit(char **args);
 int lsh_type(char **args);
 int lsh_echo(char **args);
 int lsh_pwd(char **args);
-/*list of builtin commands, followed by their corresponding functions.*/
+
 char *builtin_str [] = {
 	"cd",
 	"help",
@@ -262,7 +201,6 @@ int lsh_num_builtins(){
 	return sizeof(builtin_str)/sizeof(char *);
 }
 
-/*Builtin function implementations*/
 int lsh_cd(char **args){
 	if(args[1] == NULL){
 		fprintf(stderr,"lsh: expected argument to \"cd\"\n");
@@ -276,12 +214,11 @@ int lsh_cd(char **args){
 }
 
 int lsh_help(char **args){
-	int i;
 	printf("LSH\n");
 	printf("Type program names and arguments, hit enter.\n");
 	printf("The following are built in :\n");
 
-	for(i = 0;i < lsh_num_builtins(); i++){
+	for(int i = 0;i < lsh_num_builtins(); i++){
 		printf("%s\n", builtin_str[i]);
 	}
 
@@ -311,16 +248,32 @@ int lsh_type(char **args){
 
 int lsh_echo(char **args){
     int i = 1;
-
+    char check;
+    
+    if(args[1][0] == '\'') check = '\'';
+    else if(args[1][0] == '"') check = '"';
+    
     while(args[i] != NULL){
-        printf("%s ",args[i]);
+        /*if(args[i][0] == '\'' && args[i][1] == '\''){
+            printf("");
+        }*/
+        if(args[i][1] == check && args[i][ strlen(args[i]) - 1] == check){
+            printf("%.*s", strlen(args[i]) - 2, args[i] + 1);
+        }
+        else if( i == 1 && args[1][0] == check ){
+            printf("%s ", args[i] + 1);
+
+        } 
+        else if( args[i+1] == NULL && args[i][ strlen(args[i]) -1 ] == check){
+            printf("%.*s",strlen(args[i]) - 1, args[i]);
+        }
+        else printf("%s ",args[i]);
         i++;
     }
     printf("\n");
     return 1;
 }
 
-//https://www.gnu.org/software/libc/manual/html_node/Working-Directory.html
 int lsh_pwd(char **args){
     char *directory = malloc(1024 * sizeof(char));
     if(directory == NULL){
@@ -335,20 +288,13 @@ int lsh_pwd(char **args){
     return 1;
 }
 
-/*
-Putting together builtins and processes
-
-The last missing piece of the puzzle is to implement lsh_execute(), the function that will either launch a builtin, or a process.
-*/
 int lsh_execute(char **args){
-	int i;
-
 	if(args[0] == NULL){
 		//empty command entered
 		return 1;
 	}
 
-	for(i = 0;i < lsh_num_builtins(); i++){
+	for(int i = 0;i < lsh_num_builtins(); i++){
 		if(strcmp(args[0], builtin_str[i]) == 0){
 			return (*builtin_func[i])(args);
 		}
