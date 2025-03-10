@@ -2,14 +2,13 @@
 
 Building a shell in C from a tutorial by Stephan Brennan.
 
-![](ssimage.png)
+![](image.png)
 
 Command :
- - cd
  - help
+ - cd
  - exit
- 
- later addon by me,
  - type 
  - echo
  - pwd
+ - Can Run external Programs

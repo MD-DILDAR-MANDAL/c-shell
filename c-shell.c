@@ -66,12 +66,9 @@ char * lsh_read_line(void){
 }
 
 /*
-We won’t allow quoting or backslash escaping in our command line arguments. 
+We won’t allow quoting or backslash escaping is not allowed yet . 
 Instead, we will simply use whitespace to separate arguments from each other. 
 So the command echo "this message" would not call echo with a single argument this message, but rather it would call echo with two arguments: "this and message".
-
-With those simplifications, all we need to do is “tokenize” the string using whitespace as delimiters. 
-That means we can break out the classic library function strtok to do some of the dirty work for us.
 */
 #define LSH_TOK_BUFSIZE 64
 #define LSH_TOK_DELIM " \t\r\n\a"
@@ -103,31 +100,6 @@ char **lsh_split_line(char * line){
     return tokens;
 }
 
-/*How shells start processes
-There are only two ways of starting processes on Unix. 
-The first one (which almost doesn’t count) is by being Init. 
-You see, when a Unix computer boots, its kernel is loaded. 
-Once it is loaded and initialized, the kernel starts only one process, which is called Init. 
-This process runs for the entire length of time that the computer is on, and it manages loading up the rest of the processes that you need for your computer to be useful.
-
-Since most programs aren’t Init, that leaves only one practical way for processes to get started: the fork() system call. 
-When this function is called, the operating system makes a duplicate of the process and starts them both running. 
-The original process is called the “parent”, and the new one is called the “child”. 
-fork() returns 0 to the child process, and it returns to the parent the process ID number (PID) of its child. 
-In essence, this means that the only way for new processes is to start is by an existing one duplicating itself.
-
-Typically, when you want to run a new process, you don’t just want another copy of the same program – you want to run a different program. 
-That’s what the exec() system call is all about. 
-It replaces the current running program with an entirely new one. 
-This means that when you call exec, the operating system stops your process, loads up the new program, and starts that one in its place. 
-A process never returns from an exec() call (unless there’s an error).
-
-With these two system calls, we have the building blocks for how most programs are run on Unix. 
-First, an existing process forks itself into two separate ones. 
-Then, the child uses exec() to replace itself with a new program. 
-The parent process can continue doing other things, and it can even keep tabs on its children, using the system call wait().
-
-*/
 int lsh_launch(char **args){
     pid_t pid, wpid;
     int status;
@@ -137,6 +109,11 @@ int lsh_launch(char **args){
         if(execvp(args[0], args) == -1){
             perror("lsh");
         }
+        /*this exit is reached only if execvp fails 
+         *if it succeds the child process stops  
+         *and the new program starts running. The process is replaced
+         *so rest of the code of child will never reach
+         */
         exit(EXIT_FAILURE);
     }
     else if(pid < 0){
@@ -168,8 +145,7 @@ That command also needs to be built into the shell.
 Also, most shells are configured by running configuration scripts, like ~/.bashrc. 
 Those scripts use commands that change the operation of the shell. 
 These commands could only change the shell’s operation if they were implemented within the shell process itself.
-
-So, it makes sense that we need to add some commands to the shell itself. The ones I added to my shell are cd, exit, and help.
+So, it makes sense that we need to add some commands to the shell itself.
  */
 
 int lsh_cd(char **args);
@@ -254,9 +230,6 @@ int lsh_echo(char **args){
     else if(args[1][0] == '"') check = '"';
     
     while(args[i] != NULL){
-        /*if(args[i][0] == '\'' && args[i][1] == '\''){
-            printf("");
-        }*/
         if(args[i][1] == check && args[i][ strlen(args[i]) - 1] == check){
             printf("%.*s", strlen(args[i]) - 2, args[i] + 1);
         }
