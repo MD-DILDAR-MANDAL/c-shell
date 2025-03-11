@@ -3,6 +3,7 @@
 #include <stdlib.h> //malloc()  realloc()   free()  exit()  execvp() EXIT_SUCCESS, EXIT_FAILURE
 #include <stdio.h> //fprintf()   stderr  getchar() perror()
 #include <string.h>
+#include <fcntl.h>
 
 void lsh_loop(void);
 char * lsh_read_line(void);
@@ -162,8 +163,7 @@ char *builtin_str [] = {
 	"exit",
 	"type",
     "echo",
-    "pwd",
-    ">"
+    "pwd"
 };
 
 int (*builtin_func[]) (char **) = {
@@ -172,8 +172,7 @@ int (*builtin_func[]) (char **) = {
 	&lsh_exit,
 	&lsh_type,
     &lsh_echo,
-    &lsh_pwd,
-    &lsh_redirect
+    &lsh_pwd
 }; 
 
 int lsh_num_builtins(){
@@ -264,22 +263,75 @@ int lsh_pwd(char **args){
     return 1;
 }
 
-/*int lsh_redirect(char **args){
-    fclose (stdout);
-    stdout = fopen(args[2],"w");
+int lsh_redirect(char **args){
+    int fd;
+    int i = 0;
+    int append = 0;
+
+    while(args[i] != NULL){
+        if( strcmp(args[i], ">") == 0 ){
+            append = 0;
+            break;
+        }
+        else if( strcmp(args[i], ">>") == 0){
+            append = 1;
+            break;
+        }
+        i++;
+    }
+
+    if(args[i] == NULL || args[i + 1] == NULL){
+        fprintf(stderr,"lsh");
+        return 1;
+    }
+    
+    char *filename = args[i + 1];
+    fd = open(filename,O_WRONLY | O_CREAT | (append?O_APPEND:O_TRUNC),0644);
+    if(fd < 0){
+        perror("lsh");
+        return 1;
+    }
+
+    pid_t pid = fork();
+    if(pid == 0){
+        dup2(fd, STDOUT_FILENO);
+        close(fd);
+        args[i] = NULL;
+        execvp( args[0],args );
+        perror("lsh");
+        exit(EXIT_FAILURE);
+    }
+    else if(pid < 0){
+        perror("lsh");
+    }
+    else {
+        close(fd);
+        wait(NULL);
+    }
     return 1;
 }
-*/
+
 int lsh_execute(char **args){
+    int i = 0;
+
 	if(args[0] == NULL){
 		//empty command entered
 		return 1;
 	}
+
+    //check for redirection
+    while(args[i] != NULL){
+        if(strcmp(args[i], ">") == 0 || strcmp(args[i], ">>") == 0){
+            return lsh_redirect(args);
+        }
+        i++;
+    }
 
 	for(int i = 0;i < lsh_num_builtins(); i++){
 		if(strcmp(args[0], builtin_str[i]) == 0){
 			return (*builtin_func[i])(args);
 		}
 	}
+    //external program
 	return lsh_launch(args);
 }
