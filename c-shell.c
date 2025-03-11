@@ -154,6 +154,7 @@ int lsh_exit(char **args);
 int lsh_type(char **args);
 int lsh_echo(char **args);
 int lsh_pwd(char **args);
+int lsh_redirect(char **args);
 
 char *builtin_str [] = {
 	"cd",
@@ -161,7 +162,8 @@ char *builtin_str [] = {
 	"exit",
 	"type",
     "echo",
-    "pwd"
+    "pwd",
+    ">"
 };
 
 int (*builtin_func[]) (char **) = {
@@ -170,7 +172,8 @@ int (*builtin_func[]) (char **) = {
 	&lsh_exit,
 	&lsh_type,
     &lsh_echo,
-    &lsh_pwd
+    &lsh_pwd,
+    &lsh_redirect
 }; 
 
 int lsh_num_builtins(){
@@ -261,6 +264,12 @@ int lsh_pwd(char **args){
     return 1;
 }
 
+/*int lsh_redirect(char **args){
+    fclose (stdout);
+    stdout = fopen(args[2],"w");
+    return 1;
+}
+*/
 int lsh_execute(char **args){
 	if(args[0] == NULL){
 		//empty command entered
