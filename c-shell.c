@@ -263,6 +263,14 @@ int lsh_pwd(char **args){
     return 1;
 }
 
+/* In redirect function we open the file for redirection open().Then save the original stdout 
+ * using dup() in saved_stdout. Redirect output from STDOUT_FILENO to 
+ * the file using dup2(), then close the file. In Execute function the 
+ * built-in or external command will be detected. Now we restore original 
+ * stdout using dup2(saved_stdout, STDOUT_FILENO) this redirect the 
+ * output to the saved_stdout. The saved_stdout points to the file.
+ * Now close(saved_stdout) to free the file descriptor
+*/
 int lsh_redirect(char **args, int *saved_stdout){
     int fd = -1;
     int i = 0;
