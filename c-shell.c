@@ -155,7 +155,7 @@ int lsh_exit(char **args);
 int lsh_type(char **args);
 int lsh_echo(char **args);
 int lsh_pwd(char **args);
-int lsh_redirect(char **args);
+int lsh_redirect(char **args, int *saved_stdout);
 
 char *builtin_str [] = {
 	"cd",
@@ -263,10 +263,11 @@ int lsh_pwd(char **args){
     return 1;
 }
 
-int lsh_redirect(char **args){
-    int fd;
+int lsh_redirect(char **args, int *saved_stdout){
+    int fd = -1;
     int i = 0;
     int append = 0;
+    char *filename;
 
     while(args[i] != NULL){
         if( strcmp(args[i], ">") == 0 ){
@@ -280,58 +281,45 @@ int lsh_redirect(char **args){
         i++;
     }
 
-    if(args[i] == NULL || args[i + 1] == NULL){
-        fprintf(stderr,"lsh");
-        return 1;
-    }
+    if(args[i] == NULL) return 0;
+
+    args[i] = 0;
     
-    char *filename = args[i + 1];
+    filename = args[i + 1];
     fd = open(filename,O_WRONLY | O_CREAT | (append?O_APPEND:O_TRUNC),0644);
     if(fd < 0){
         perror("lsh");
-        return 1;
+        return -1;
     }
 
-    pid_t pid = fork();
-    if(pid == 0){
-        dup2(fd, STDOUT_FILENO);
-        close(fd);
-        args[i] = NULL;
-        execvp( args[0],args );
-        perror("lsh");
-        exit(EXIT_FAILURE);
-    }
-    else if(pid < 0){
-        perror("lsh");
-    }
-    else {
-        close(fd);
-        wait(NULL);
-    }
+    *saved_stdout = dup(STDOUT_FILENO);
+    dup2(fd, STDOUT_FILENO);
+    close(fd);
     return 1;
 }
 
 int lsh_execute(char **args){
-    int i = 0;
-
-	if(args[0] == NULL){
-		//empty command entered
-		return 1;
-	}
-
-    //check for redirection
-    while(args[i] != NULL){
-        if(strcmp(args[i], ">") == 0 || strcmp(args[i], ">>") == 0){
-            return lsh_redirect(args);
-        }
-        i++;
-    }
+	if(args[0] == NULL) return 1;
+   
+    int saved_stdout = -1;
+    int result;
+    int redirection_applied = lsh_redirect(args, &saved_stdout);
 
 	for(int i = 0;i < lsh_num_builtins(); i++){
 		if(strcmp(args[0], builtin_str[i]) == 0){
-			return (*builtin_func[i])(args);
+			result = (*builtin_func[i])(args);
+            if(redirection_applied){
+                dup2(saved_stdout, STDOUT_FILENO);
+                close(saved_stdout);
+            }
+            return result;
 		}
 	}
-    //external program
-	return lsh_launch(args);
+    
+    result = lsh_launch(args);
+    if(redirection_applied){
+        dup2(saved_stdout, STDOUT_FILENO);
+        close(saved_stdout);
+    }
+	return result;
 }
