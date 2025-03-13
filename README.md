@@ -12,3 +12,4 @@ Command :
  - echo
  - pwd
  - Can Run external Programs
+ - \>, >> (redirect output to a file)
