@@ -129,24 +129,13 @@ int lsh_launch(char **args){
 }
 
 /*Shell Builtins
-
-You may have noticed that the lsh_loop() function calls lsh_execute(), but above, we titled our function lsh_launch(). 
-This was intentional! You see, most commands a shell executes are programs, but not all of them. 
-Some of them are built right into the shell.
-
-The reason is actually pretty simple. 
-If you want to change directory, you need to use the function chdir(). The thing is, the current directory is a property of a process. 
-So, if you wrote a program called cd that changed directory, it would just change its own current directory, and then terminate. 
+If you want to change directory, you need to use the function chdir(). 
+The current directory is a property of a process. 
+So, if you wrote a program called cd that changed directory, 
+it would just change its own current directory, and then terminate. 
 Its parent process’s current directory would be unchanged. 
 Instead, the shell process itself needs to execute chdir(), so that its own current directory is updated. 
 Then, when it launches child processes, they will inherit that directory too.
-
-Similarly, if there was a program named exit, it wouldn’t be able to exit the shell that called it. 
-That command also needs to be built into the shell. 
-Also, most shells are configured by running configuration scripts, like ~/.bashrc. 
-Those scripts use commands that change the operation of the shell. 
-These commands could only change the shell’s operation if they were implemented within the shell process itself.
-So, it makes sense that we need to add some commands to the shell itself.
  */
 
 int lsh_cd(char **args);
@@ -199,7 +188,7 @@ int lsh_help(char **args){
 	for(int i = 0;i < lsh_num_builtins(); i++){
 		printf("%s\n", builtin_str[i]);
 	}
-
+    printf("> and >>\n");
 	printf("Use the man command for information on other programs.\n");
 	return 1;
 }
@@ -225,6 +214,11 @@ int lsh_type(char **args){
 }
 
 int lsh_echo(char **args){
+    if(args[1] == NULL){
+        printf("\n");
+        return 1;
+    }
+
     int i = 1;
     char check;
     
@@ -232,9 +226,10 @@ int lsh_echo(char **args){
     else if(args[1][0] == '"') check = '"';
     
     while(args[i] != NULL){
-        if(args[i][1] == check && args[i][ strlen(args[i]) - 1] == check){
+        if(args[i][0] == check && args[i][ strlen(args[i]) - 1] == check){
             printf("%.*s", strlen(args[i]) - 2, args[i] + 1);
         }
+        //for multiple words the below two condition required
         else if( i == 1 && args[1][0] == check ){
             printf("%s ", args[i] + 1);
 
@@ -294,6 +289,8 @@ int lsh_redirect(char **args, int *saved_stdout){
     args[i] = 0;
     
     filename = args[i + 1];
+    // mode: octal notation so 4 values
+    // owner : 6 - rw_ , group : 4 - r__ , others: 4 - r__
     fd = open(filename,O_WRONLY | O_CREAT | (append?O_APPEND:O_TRUNC),0644);
     if(fd < 0){
         perror("lsh");
@@ -301,6 +298,8 @@ int lsh_redirect(char **args, int *saved_stdout){
     }
 
     *saved_stdout = dup(STDOUT_FILENO);
+    //fd is the STDOUT_FILENO 
+    //saved the original STDOUT_FILENO in saved_stdout earlier
     dup2(fd, STDOUT_FILENO);
     close(fd);
     return 1;
@@ -316,6 +315,10 @@ int lsh_execute(char **args){
 	for(int i = 0;i < lsh_num_builtins(); i++){
 		if(strcmp(args[0], builtin_str[i]) == 0){
 			result = (*builtin_func[i])(args);
+            //output is stored in the file as  we changed the file descriptor
+            //in the lsh_redirect function
+            //now we will set the STDOUT_FILENO to original file descriptor
+            //ie saved_stdout
             if(redirection_applied){
                 dup2(saved_stdout, STDOUT_FILENO);
                 close(saved_stdout);
